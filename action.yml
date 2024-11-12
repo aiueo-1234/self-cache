@@ -1,24 +1,31 @@
-name: 'The name of your action here'
+name: 'Cache on self- hosted runner'
 description: 'Provide a description here'
-author: 'Your name or organization here'
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: 'heart'
+  icon: 'archive'
   color: 'red'
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: 'Your input description here'
+  path:
+    description: 'A directory to save and restore cache.'
     required: true
-    default: '1000'
+  key:
+    description: 'An explicit key for a cache.'
+    required: true
+  base:
+    description: 'A base directory to save and restore cache.'
+    required: false
+    default: '/home/runner/.cache/gh-cache'
 
 # Define your outputs here.
 outputs:
-  time:
-    description: 'Your output description here'
+  hit:
+    description: 'Cache hit or not'
 
 runs:
   using: node20
-  main: dist/index.js
+  main: 'dist/restore/index.js'
+  post: 'dist/save/index.js'
+  post-if: success()
