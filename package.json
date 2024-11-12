@@ -1,16 +1,16 @@
 {
   "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
+  "description": "GitHub Actions cache for self-hosted runner",
   "version": "0.0.0",
   "author": "",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/aiueo-1234/self-cache",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/aiueo-1234/self-cache.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/aiueo-1234/self-cache/issues"
   },
   "keywords": [
     "actions",
