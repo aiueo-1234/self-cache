@@ -8,11 +8,14 @@ export interface StoreInfo {
   storeFilePath: string;
 }
 
-export function getStoreInfo(key: string, base: string): StoreInfo {
+export async function getStoreInfo(
+  key: string,
+  base: string,
+): Promise<StoreInfo> {
   const storeDir = join(base, key);
   const storeFileName = `${key}.7z`;
   const storeFilePath = join(storeDir, storeFileName);
-  mkdirP(storeDir);
+  await mkdirP(storeDir);
   return {
     key: key,
     storeDir: storeDir,

@@ -7,14 +7,14 @@ import { StoreInfo } from './storeInfo';
 export async function comp(
   compDirPath: string,
   storeInfo: StoreInfo,
-  earlyExit?: boolean | undefined,
-) {
+  earlyExit?: boolean,
+): Promise<void> {
   try {
     if (!platform.isLinux) {
       throw new Error(`Sorry. Cureent suport is Linux only.`);
     } else {
       if (await exists(storeInfo.storeFilePath)) {
-        rmRF(storeInfo.storeFilePath);
+        await rmRF(storeInfo.storeFilePath);
       }
       await exec.exec('7z', ['a', storeInfo.storeFileName, compDirPath], {
         cwd: storeInfo.storeDir,
