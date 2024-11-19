@@ -8,9 +8,6 @@ inputs:
   key:
     description: 'An explicit key for saving the cache'
     required: true
-  upload-chunk-size:
-    description: 'The chunk size used to split up large files during upload, in bytes'
-    required: false
   base:
     description: 'A base directory to save and restore cache.'
     required: false

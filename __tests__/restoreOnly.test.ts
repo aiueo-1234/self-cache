@@ -58,8 +58,7 @@ test("restore with no cache found", async () => {
     const key = "node-test";
     testUtils.setInputs({
         path: path,
-        key,
-        enableCrossOsArchive: false
+        key
     });
 
     const infoMock = jest.spyOn(core, "info");
@@ -74,15 +73,7 @@ test("restore with no cache found", async () => {
     await restoreOnlyRun();
 
     expect(restoreCacheMock).toHaveBeenCalledTimes(1);
-    expect(restoreCacheMock).toHaveBeenCalledWith(
-        [path],
-        key,
-        [],
-        {
-            lookupOnly: false
-        },
-        false
-    );
+    expect(restoreCacheMock).toHaveBeenCalledWith([path], key, [], false);
 
     expect(outputMock).toHaveBeenCalledWith("cache-primary-key", key);
     expect(outputMock).toHaveBeenCalledTimes(1);
@@ -100,8 +91,7 @@ test("restore with restore keys and no cache found", async () => {
     testUtils.setInputs({
         path: path,
         key,
-        restoreKeys: [restoreKey],
-        enableCrossOsArchive: false
+        restoreKeys: [restoreKey]
     });
 
     const infoMock = jest.spyOn(core, "info");
@@ -120,9 +110,6 @@ test("restore with restore keys and no cache found", async () => {
         [path],
         key,
         [restoreKey],
-        {
-            lookupOnly: false
-        },
         false
     );
 
@@ -139,8 +126,7 @@ test("restore with cache found for key", async () => {
     const key = "node-test";
     testUtils.setInputs({
         path: path,
-        key,
-        enableCrossOsArchive: false
+        key
     });
 
     const infoMock = jest.spyOn(core, "info");
@@ -155,15 +141,7 @@ test("restore with cache found for key", async () => {
     await restoreOnlyRun();
 
     expect(restoreCacheMock).toHaveBeenCalledTimes(1);
-    expect(restoreCacheMock).toHaveBeenCalledWith(
-        [path],
-        key,
-        [],
-        {
-            lookupOnly: false
-        },
-        false
-    );
+    expect(restoreCacheMock).toHaveBeenCalledWith([path], key, [], false);
 
     expect(outputMock).toHaveBeenCalledWith("cache-primary-key", key);
     expect(outputMock).toHaveBeenCalledWith("cache-hit", "true");
@@ -182,8 +160,7 @@ test("restore with cache found for restore key", async () => {
     testUtils.setInputs({
         path: path,
         key,
-        restoreKeys: [restoreKey],
-        enableCrossOsArchive: false
+        restoreKeys: [restoreKey]
     });
 
     const infoMock = jest.spyOn(core, "info");
@@ -202,9 +179,6 @@ test("restore with cache found for restore key", async () => {
         [path],
         key,
         [restoreKey],
-        {
-            lookupOnly: false
-        },
         false
     );
 

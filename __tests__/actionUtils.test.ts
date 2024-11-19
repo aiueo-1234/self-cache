@@ -5,7 +5,6 @@ import * as actionUtils from "../src/utils/actionUtils";
 import * as testUtils from "../src/utils/testUtils";
 
 jest.mock("@actions/core");
-jest.mock("@actions/cache");
 
 let pristineEnv: NodeJS.ProcessEnv;
 
