@@ -1,6 +1,6 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
+import * as cache from "./cache";
 import { Events, Inputs, Outputs, State } from "./constants";
 import {
     IStateProvider,
@@ -36,9 +36,6 @@ export async function restoreImpl(
         const cachePaths = utils.getInputAsArray(Inputs.Path, {
             required: true
         });
-        const enableCrossOsArchive = utils.getInputAsBool(
-            Inputs.EnableCrossOsArchive
-        );
         const failOnCacheMiss = utils.getInputAsBool(Inputs.FailOnCacheMiss);
         const lookupOnly = utils.getInputAsBool(Inputs.LookupOnly);
 
@@ -46,8 +43,7 @@ export async function restoreImpl(
             cachePaths,
             primaryKey,
             restoreKeys,
-            { lookupOnly: lookupOnly },
-            enableCrossOsArchive
+            lookupOnly
         );
 
         if (!cacheKey) {

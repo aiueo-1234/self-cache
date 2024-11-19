@@ -1,7 +1,7 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
-import { Events, RefKey } from "../src/constants";
+import * as cache from "../src/cache";
+import { Events, GithubEnvs } from "../src/constants";
 import { restoreRun } from "../src/restoreImpl";
 import * as actionUtils from "../src/utils/actionUtils";
 import * as testUtils from "../src/utils/testUtils";
@@ -39,9 +39,8 @@ beforeAll(() => {
 beforeEach(() => {
     jest.restoreAllMocks();
     process.env[Events.Key] = Events.Push;
-    process.env[RefKey] = "refs/heads/feature-branch";
+    process.env[GithubEnvs.RefKey] = "refs/heads/feature-branch";
 
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => false);
     jest.spyOn(actionUtils, "isCacheFeatureAvailable").mockImplementation(
         () => true
     );
@@ -50,7 +49,7 @@ beforeEach(() => {
 afterEach(() => {
     testUtils.clearInputs();
     delete process.env[Events.Key];
-    delete process.env[RefKey];
+    delete process.env[GithubEnvs.RefKey];
 });
 
 test("restore with no cache found", async () => {
@@ -68,7 +67,7 @@ test("restore with no cache found", async () => {
     const restoreCacheMock = jest
         .spyOn(cache, "restoreCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(undefined);
+            return Promise.resolve(null);
         });
 
     await restoreRun();
@@ -111,7 +110,7 @@ test("restore with restore keys and no cache found", async () => {
     const restoreCacheMock = jest
         .spyOn(cache, "restoreCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(undefined);
+            return Promise.resolve(null);
         });
 
     await restoreRun();
@@ -243,7 +242,7 @@ test("Fail restore when fail on cache miss is enabled and primary + restore keys
     const restoreCacheMock = jest
         .spyOn(cache, "restoreCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(undefined);
+            return Promise.resolve(null);
         });
 
     await restoreRun();
@@ -332,7 +331,7 @@ test("restore with fail on cache miss disabled and no cache found", async () => 
     const restoreCacheMock = jest
         .spyOn(cache, "restoreCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(undefined);
+            return Promise.resolve(null);
         });
 
     await restoreRun();

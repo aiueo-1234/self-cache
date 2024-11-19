@@ -1,7 +1,7 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
-import { Events, Inputs, RefKey } from "../src/constants";
+import * as cache from "../src/cache";
+import { Events, GithubEnvs, Inputs } from "../src/constants";
 import { saveImpl } from "../src/saveImpl";
 import { StateProvider } from "../src/stateProvider";
 import * as actionUtils from "../src/utils/actionUtils";
@@ -57,9 +57,8 @@ beforeAll(() => {
 beforeEach(() => {
     jest.restoreAllMocks();
     process.env[Events.Key] = Events.Push;
-    process.env[RefKey] = "refs/heads/feature-branch";
+    process.env[GithubEnvs.RefKey] = "refs/heads/feature-branch";
 
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => false);
     jest.spyOn(actionUtils, "isCacheFeatureAvailable").mockImplementation(
         () => true
     );
@@ -68,7 +67,7 @@ beforeEach(() => {
 afterEach(() => {
     testUtils.clearInputs();
     delete process.env[Events.Key];
-    delete process.env[RefKey];
+    delete process.env[GithubEnvs.RefKey];
 });
 
 test("save with invalid event outputs warning", async () => {
@@ -76,7 +75,7 @@ test("save with invalid event outputs warning", async () => {
     const failedMock = jest.spyOn(core, "setFailed");
     const invalidEvent = "commit_comment";
     process.env[Events.Key] = invalidEvent;
-    delete process.env[RefKey];
+    delete process.env[GithubEnvs.RefKey];
     await saveImpl(new StateProvider());
     expect(logWarningMock).toHaveBeenCalledWith(
         `Event Validation Error: The event type ${invalidEvent} is not supported because it's not tied to a branch or tag ref.`
@@ -121,7 +120,6 @@ test("save without AC available should no-op", async () => {
 });
 
 test("save on ghes without AC available should no-op", async () => {
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => true);
     jest.spyOn(actionUtils, "isCacheFeatureAvailable").mockImplementation(
         () => false
     );
@@ -134,7 +132,6 @@ test("save on ghes without AC available should no-op", async () => {
 });
 
 test("save on GHES with AC available", async () => {
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => true);
     const failedMock = jest.spyOn(core, "setFailed");
 
     const primaryKey = "Linux-node-bb828da54c148048dd17899ba9fda624811cfb43";

@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 
-import { Events, RefKey, State } from "../src/constants";
+import { Events, GithubEnvs, State } from "../src/constants";
 import {
     IStateProvider,
     NullStateProvider,
@@ -21,7 +21,7 @@ beforeAll(() => {
 
 afterEach(() => {
     delete process.env[Events.Key];
-    delete process.env[RefKey];
+    delete process.env[GithubEnvs.RefKey];
 });
 
 test("StateProvider saves states", async () => {

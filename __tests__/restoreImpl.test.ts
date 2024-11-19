@@ -1,7 +1,7 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
-import { Events, Inputs, RefKey } from "../src/constants";
+import * as cache from "../src/cache";
+import { Events, GithubEnvs, Inputs } from "../src/constants";
 import { restoreImpl } from "../src/restoreImpl";
 import { StateProvider } from "../src/stateProvider";
 import * as actionUtils from "../src/utils/actionUtils";
@@ -40,9 +40,8 @@ beforeAll(() => {
 beforeEach(() => {
     jest.restoreAllMocks();
     process.env[Events.Key] = Events.Push;
-    process.env[RefKey] = "refs/heads/feature-branch";
+    process.env[GithubEnvs.RefKey] = "refs/heads/feature-branch";
 
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => false);
     jest.spyOn(actionUtils, "isCacheFeatureAvailable").mockImplementation(
         () => true
     );
@@ -51,7 +50,7 @@ beforeEach(() => {
 afterEach(() => {
     testUtils.clearInputs();
     delete process.env[Events.Key];
-    delete process.env[RefKey];
+    delete process.env[GithubEnvs.RefKey];
 });
 
 test("restore with invalid event outputs warning", async () => {
@@ -59,7 +58,7 @@ test("restore with invalid event outputs warning", async () => {
     const failedMock = jest.spyOn(core, "setFailed");
     const invalidEvent = "commit_comment";
     process.env[Events.Key] = invalidEvent;
-    delete process.env[RefKey];
+    delete process.env[GithubEnvs.RefKey];
     await restoreImpl(new StateProvider());
     expect(logWarningMock).toHaveBeenCalledWith(
         `Event Validation Error: The event type ${invalidEvent} is not supported because it's not tied to a branch or tag ref.`
@@ -68,7 +67,6 @@ test("restore with invalid event outputs warning", async () => {
 });
 
 test("restore without AC available should no-op", async () => {
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => false);
     jest.spyOn(actionUtils, "isCacheFeatureAvailable").mockImplementation(
         () => false
     );
@@ -84,7 +82,6 @@ test("restore without AC available should no-op", async () => {
 });
 
 test("restore on GHES without AC available should no-op", async () => {
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => true);
     jest.spyOn(actionUtils, "isCacheFeatureAvailable").mockImplementation(
         () => false
     );
@@ -100,7 +97,6 @@ test("restore on GHES without AC available should no-op", async () => {
 });
 
 test("restore on GHES with AC available ", async () => {
-    jest.spyOn(actionUtils, "isGhes").mockImplementation(() => true);
     const path = "node_modules";
     const key = "node-test";
     testUtils.setInputs({
@@ -257,7 +253,7 @@ test("restore with no cache found", async () => {
     const restoreCacheMock = jest
         .spyOn(cache, "restoreCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(undefined);
+            return Promise.resolve(null);
         });
 
     await restoreImpl(new StateProvider());
@@ -298,7 +294,7 @@ test("restore with restore keys and no cache found", async () => {
     const restoreCacheMock = jest
         .spyOn(cache, "restoreCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(undefined);
+            return Promise.resolve(null);
         });
 
     await restoreImpl(new StateProvider());

@@ -11,10 +11,6 @@ inputs:
   restore-keys:
     description: 'An ordered multiline string listing the prefix-matched keys, that are used for restoring stale cache if no cache hit occurred for key. Note `cache-hit` returns false in this case.'
     required: false
-  enableCrossOsArchive:
-    description: 'An optional boolean when enabled, allows windows runners to restore caches that were saved on other platforms'
-    default: 'false'
-    required: false
   fail-on-cache-miss:
     description: 'Fail the workflow if cache entry is not found'
     default: 'false'
@@ -23,6 +19,10 @@ inputs:
     description: 'Check if a cache entry exists for the given input(s) (key, restore-keys) without downloading the cache'
     default: 'false'
     required: false
+  base:
+    description: 'A base directory to save and restore cache.'
+    required: false
+    default: '/home/runner/.cache/gh-cache'
 outputs:
   cache-hit:
     description: 'A boolean value to indicate an exact match was found for the primary key'

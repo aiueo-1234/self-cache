@@ -1,6 +1,6 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
+import * as cache from "./cache";
 import { Events, Inputs, State } from "./constants";
 import {
     IStateProvider,
@@ -58,16 +58,7 @@ export async function saveImpl(
             required: true
         });
 
-        const enableCrossOsArchive = utils.getInputAsBool(
-            Inputs.EnableCrossOsArchive
-        );
-
-        cacheId = await cache.saveCache(
-            cachePaths,
-            primaryKey,
-            { uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize) },
-            enableCrossOsArchive
-        );
+        cacheId = await cache.saveCache(cachePaths, primaryKey);
 
         if (cacheId != -1) {
             core.info(`Cache saved with key: ${primaryKey}`);

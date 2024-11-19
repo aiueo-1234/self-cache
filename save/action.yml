@@ -11,10 +11,10 @@ inputs:
   upload-chunk-size:
     description: 'The chunk size used to split up large files during upload, in bytes'
     required: false
-  enableCrossOsArchive:
-    description: 'An optional boolean when enabled, allows windows runners to save caches that can be restored on other platforms'
-    default: 'false'
+  base:
+    description: 'A base directory to save and restore cache.'
     required: false
+    default: '/home/runner/.cache/gh-cache'
 runs:
   using: 'node20'
   main: '../dist/save-only/index.js'

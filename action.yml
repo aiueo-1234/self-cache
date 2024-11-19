@@ -14,10 +14,6 @@ inputs:
   upload-chunk-size:
     description: 'The chunk size used to split up large files during upload, in bytes'
     required: false
-  enableCrossOsArchive:
-    description: 'An optional boolean when enabled, allows windows runners to save or restore caches that can be restored or saved respectively on other platforms'
-    default: 'false'
-    required: false
   fail-on-cache-miss:
     description: 'Fail the workflow if cache entry is not found'
     default: 'false'
@@ -34,6 +30,10 @@ inputs:
       save-always does not work as intended and will be removed in a future release.
       A separate `actions/cache/restore` step should be used instead.
       See https://github.com/actions/cache/tree/main/save#always-save-cache for more details.
+  base:
+    description: 'A base directory to save and restore cache.'
+    required: false
+    default: '/home/runner/.cache/gh-cache'
 outputs:
   cache-hit:
     description: 'A boolean value to indicate an exact match was found for the primary key'
