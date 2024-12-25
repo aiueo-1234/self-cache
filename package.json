@@ -1,5 +1,5 @@
 {
-  "name": "cache",
+  "name": "self-cache",
   "version": "4.2.1",
   "private": true,
   "description": "Cache dependencies and build outputs",
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/cache.git"
+    "url": "git+https://github.com/aiueo-1234/self-cache.git"
   },
   "keywords": [
     "actions",
