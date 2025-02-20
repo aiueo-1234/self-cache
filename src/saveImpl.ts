@@ -65,7 +65,10 @@ export async function saveImpl(
         cacheId = await cache.saveCache(
             cachePaths,
             primaryKey,
-            { uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize) },
+            {
+                uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize),
+                ...utils.getLocalCacheConfig()
+            },
             enableCrossOsArchive
         );
 

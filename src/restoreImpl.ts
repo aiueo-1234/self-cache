@@ -46,7 +46,7 @@ export async function restoreImpl(
             cachePaths,
             primaryKey,
             restoreKeys,
-            { lookupOnly: lookupOnly },
+            { lookupOnly: lookupOnly, ...utils.getLocalCacheConfig() },
             enableCrossOsArchive
         );
 
