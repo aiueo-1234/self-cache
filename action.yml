@@ -34,7 +34,11 @@ inputs:
       save-always does not work as intended and will be removed in a future release.
       A separate `actions/cache/restore` step should be used instead.
       See https://github.com/actions/cache/tree/main/save#always-save-cache for more details.
-  base:
+  use-local-cache:
+    description: 'Use a local cache for saving and restoring cache'
+    default: 'false'
+    required: false
+  base-directory:
     description: 'A base directory to save and restore cache.'
     required: false
     default: '/home/runner/.cache/gh-cache'
