@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 5116:
+/***/ 337:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -41,13 +41,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.saveCache = exports.restoreCache = exports.isFeatureAvailable = exports.ReserveCacheError = exports.ValidationError = void 0;
 const core = __importStar(__nccwpck_require__(7484));
+const io = __importStar(__nccwpck_require__(4994));
+const ioUtil = __importStar(__nccwpck_require__(5207));
 const path = __importStar(__nccwpck_require__(6928));
-const utils = __importStar(__nccwpck_require__(8299));
-const cacheHttpClient = __importStar(__nccwpck_require__(3171));
-const cacheTwirpClient = __importStar(__nccwpck_require__(6819));
-const config_1 = __nccwpck_require__(7606);
-const tar_1 = __nccwpck_require__(5321);
-const constants_1 = __nccwpck_require__(8287);
+const utils = __importStar(__nccwpck_require__(5818));
+const cacheHttpClient = __importStar(__nccwpck_require__(8840));
+const cacheTwirpClient = __importStar(__nccwpck_require__(8264));
+const config_1 = __nccwpck_require__(6063);
+const tar_1 = __nccwpck_require__(4198);
+const constants_1 = __nccwpck_require__(7924);
 class ValidationError extends Error {
     constructor(message) {
         super(message);
@@ -76,6 +78,18 @@ function checkKey(key) {
     const regex = /^[^,]*$/;
     if (!regex.test(key)) {
         throw new ValidationError(`Key Validation Error: ${key} cannot contain commas.`);
+    }
+}
+function checkLocalCacheDirectoryBasePath(options) {
+    if (!(options === null || options === void 0 ? void 0 : options.useLocalCache)) {
+        return;
+    }
+    if (options.localCacheDirectoryBasePath === '' ||
+        options.localCacheDirectoryBasePath === undefined) {
+        throw new ValidationError(`localCacheDirectoryBasePath is empty. If you want to save cache to local machine, you must set this option.`);
+    }
+    if (!ioUtil.isRooted(options.localCacheDirectoryBasePath)) {
+        throw new ValidationError('localCacheDirectoryBasePath must be absolute path.');
     }
 }
 /**
@@ -213,6 +227,9 @@ function restoreCacheV2(paths, primaryKey, restoreKeys, options, enableCrossOsAr
         try {
             const twirpClient = cacheTwirpClient.internalCacheTwirpClient();
             const compressionMethod = yield utils.getCompressionMethod();
+            if (options === null || options === void 0 ? void 0 : options.useLocalCache) {
+                return yield restoreCacheLocal(primaryKey, restoreKeys, utils.getCacheVersion(paths, compressionMethod, enableCrossOsArchive), options, compressionMethod, options.lookupOnly);
+            }
             const request = {
                 key: primaryKey,
                 restoreKeys,
@@ -264,6 +281,31 @@ function restoreCacheV2(paths, primaryKey, restoreKeys, options, enableCrossOsAr
         return undefined;
     });
 }
+function restoreCacheLocal(primaryKey, restoreKeys, version, localCacheOptions, compressionMethod, lookupOnly = false) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let restoredKey = primaryKey;
+        let dist = utils.getLocalCacheDirectory(
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        localCacheOptions.localCacheDirectoryBasePath, primaryKey, version);
+        if (!(yield ioUtil.exists(dist))) {
+            for (const key of restoreKeys) {
+                dist = utils.getLocalCacheDirectory(
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                localCacheOptions.localCacheDirectoryBasePath, key, version);
+                if (yield ioUtil.exists(dist)) {
+                    restoredKey = key;
+                    break;
+                }
+            }
+            restoredKey = undefined;
+        }
+        if (lookupOnly) {
+            return restoredKey;
+        }
+        yield (0, tar_1.extractTar)(dist, compressionMethod);
+        return restoredKey;
+    });
+}
 /**
  * Saves a list of files with the specified key
  *
@@ -279,6 +321,7 @@ function saveCache(paths, key, options, enableCrossOsArchive = false) {
         core.debug(`Cache service version: ${cacheServiceVersion}`);
         checkPaths(paths);
         checkKey(key);
+        checkLocalCacheDirectoryBasePath(options);
         switch (cacheServiceVersion) {
             case 'v2':
                 return yield saveCacheV2(paths, key, options, enableCrossOsArchive);
@@ -320,6 +363,13 @@ function saveCacheV1(paths, key, options, enableCrossOsArchive = false) {
             const fileSizeLimit = 10 * 1024 * 1024 * 1024; // 10GB per repo limit
             const archiveFileSize = utils.getArchiveFileSizeInBytes(archivePath);
             core.debug(`File Size: ${archiveFileSize}`);
+            // check useLocalCache
+            if ((options === null || options === void 0 ? void 0 : options.useLocalCache) === true) {
+                const version = utils.getCacheVersion(paths, compressionMethod, enableCrossOsArchive);
+                yield saveCacheLocal(archivePath, key, version, options);
+                cacheId = 0;
+                return cacheId;
+            }
             // For GHES, this check will take place in ReserveCache API with enterprise file size limit
             if (archiveFileSize > fileSizeLimit && !(0, config_1.isGhes)()) {
                 throw new Error(`Cache size of ~${Math.round(archiveFileSize / (1024 * 1024))} MB (${archiveFileSize} B) is over the 10GB limit, not saving cache.`);
@@ -401,13 +451,21 @@ function saveCacheV2(paths, key, options, enableCrossOsArchive = false) {
             const archiveFileSize = utils.getArchiveFileSizeInBytes(archivePath);
             core.debug(`File Size: ${archiveFileSize}`);
             // For GHES, this check will take place in ReserveCache API with enterprise file size limit
-            if (archiveFileSize > constants_1.CacheFileSizeLimit && !(0, config_1.isGhes)()) {
+            if (archiveFileSize > constants_1.CacheFileSizeLimit &&
+                !(0, config_1.isGhes)() &&
+                !options.useLocalCache) {
                 throw new Error(`Cache size of ~${Math.round(archiveFileSize / (1024 * 1024))} MB (${archiveFileSize} B) is over the 10GB limit, not saving cache.`);
             }
             // Set the archive size in the options, will be used to display the upload progress
             options.archiveSizeBytes = archiveFileSize;
             core.debug('Reserving Cache');
             const version = utils.getCacheVersion(paths, compressionMethod, enableCrossOsArchive);
+            // check useLocalCache
+            if (options.useLocalCache) {
+                yield saveCacheLocal(archivePath, key, version, options);
+                cacheId = 0;
+                return cacheId;
+            }
             const request = {
                 key,
                 version
@@ -454,11 +512,22 @@ function saveCacheV2(paths, key, options, enableCrossOsArchive = false) {
         return cacheId;
     });
 }
+function saveCacheLocal(archivePath, key, version, localCacheOptions) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const dist = utils.getLocalCacheDirectory(
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        localCacheOptions.localCacheDirectoryBasePath, key, version);
+        if (!(yield ioUtil.exists(dist))) {
+            yield io.mkdirP(dist);
+        }
+        yield io.mv(archivePath, dist, { force: true });
+    });
+}
 //# sourceMappingURL=cache.js.map
 
 /***/ }),
 
-/***/ 3156:
+/***/ 5971:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -474,7 +543,7 @@ const runtime_2 = __nccwpck_require__(8886);
 const runtime_3 = __nccwpck_require__(8886);
 const runtime_4 = __nccwpck_require__(8886);
 const runtime_5 = __nccwpck_require__(8886);
-const cachemetadata_1 = __nccwpck_require__(9444);
+const cachemetadata_1 = __nccwpck_require__(713);
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateCacheEntryRequest$Type extends runtime_5.MessageType {
     constructor() {
@@ -853,14 +922,14 @@ exports.CacheService = new runtime_rpc_1.ServiceType("github.actions.results.api
 
 /***/ }),
 
-/***/ 1486:
+/***/ 1667:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.CacheServiceClientProtobuf = exports.CacheServiceClientJSON = void 0;
-const cache_1 = __nccwpck_require__(3156);
+const cache_1 = __nccwpck_require__(5971);
 class CacheServiceClientJSON {
     constructor(rpc) {
         this.rpc = rpc;
@@ -928,7 +997,7 @@ exports.CacheServiceClientProtobuf = CacheServiceClientProtobuf;
 
 /***/ }),
 
-/***/ 9444:
+/***/ 713:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -940,7 +1009,7 @@ const runtime_2 = __nccwpck_require__(8886);
 const runtime_3 = __nccwpck_require__(8886);
 const runtime_4 = __nccwpck_require__(8886);
 const runtime_5 = __nccwpck_require__(8886);
-const cachescope_1 = __nccwpck_require__(9425);
+const cachescope_1 = __nccwpck_require__(9586);
 // @generated message type with reflection information, may provide speed optimized methods
 class CacheMetadata$Type extends runtime_5.MessageType {
     constructor() {
@@ -999,7 +1068,7 @@ exports.CacheMetadata = new CacheMetadata$Type();
 
 /***/ }),
 
-/***/ 9425:
+/***/ 9586:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -1069,7 +1138,7 @@ exports.CacheScope = new CacheScope$Type();
 
 /***/ }),
 
-/***/ 3171:
+/***/ 8840:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -1113,13 +1182,13 @@ const http_client_1 = __nccwpck_require__(4844);
 const auth_1 = __nccwpck_require__(4552);
 const fs = __importStar(__nccwpck_require__(9896));
 const url_1 = __nccwpck_require__(7016);
-const utils = __importStar(__nccwpck_require__(8299));
-const uploadUtils_1 = __nccwpck_require__(5268);
-const downloadUtils_1 = __nccwpck_require__(5067);
-const options_1 = __nccwpck_require__(8356);
-const requestUtils_1 = __nccwpck_require__(2846);
-const config_1 = __nccwpck_require__(7606);
-const user_agent_1 = __nccwpck_require__(1899);
+const utils = __importStar(__nccwpck_require__(5818));
+const uploadUtils_1 = __nccwpck_require__(8171);
+const downloadUtils_1 = __nccwpck_require__(72);
+const options_1 = __nccwpck_require__(2333);
+const requestUtils_1 = __nccwpck_require__(8435);
+const config_1 = __nccwpck_require__(6063);
+const user_agent_1 = __nccwpck_require__(7360);
 function getCacheApiUrl(resource) {
     const baseUrl = (0, config_1.getCacheServiceURL)();
     if (!baseUrl) {
@@ -1332,7 +1401,7 @@ exports.saveCache = saveCache;
 
 /***/ }),
 
-/***/ 8299:
+/***/ 5818:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -1377,7 +1446,7 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getRuntimeToken = exports.getCacheVersion = exports.assertDefined = exports.getGnuTarPathOnWindows = exports.getCacheFileName = exports.getCompressionMethod = exports.unlinkFile = exports.resolvePaths = exports.getArchiveFileSizeInBytes = exports.createTempDirectory = void 0;
+exports.getLocalCacheDirectory = exports.getRuntimeToken = exports.getCacheVersion = exports.assertDefined = exports.getGnuTarPathOnWindows = exports.getCacheFileName = exports.getCompressionMethod = exports.unlinkFile = exports.resolvePaths = exports.getArchiveFileSizeInBytes = exports.createTempDirectory = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const exec = __importStar(__nccwpck_require__(5236));
 const glob = __importStar(__nccwpck_require__(7206));
@@ -1387,7 +1456,7 @@ const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const semver = __importStar(__nccwpck_require__(9318));
 const util = __importStar(__nccwpck_require__(9023));
-const constants_1 = __nccwpck_require__(8287);
+const constants_1 = __nccwpck_require__(7924);
 const versionSalt = '1.0';
 // From https://github.com/actions/toolkit/blob/main/packages/tool-cache/src/tool-cache.ts#L23
 function createTempDirectory() {
@@ -1551,11 +1620,17 @@ function getRuntimeToken() {
     return token;
 }
 exports.getRuntimeToken = getRuntimeToken;
+function getLocalCacheDirectory(localCacheDirectoryBasePath, key, version) {
+    var _a;
+    const ret = path.join(localCacheDirectoryBasePath, (_a = process.env['GITHUB_REPOSITORY']) !== null && _a !== void 0 ? _a : '', key, version);
+    return ret;
+}
+exports.getLocalCacheDirectory = getLocalCacheDirectory;
 //# sourceMappingURL=cacheUtils.js.map
 
 /***/ }),
 
-/***/ 7606:
+/***/ 6063:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -1599,7 +1674,7 @@ exports.getCacheServiceURL = getCacheServiceURL;
 
 /***/ }),
 
-/***/ 8287:
+/***/ 7924:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -1643,7 +1718,7 @@ exports.CacheFileSizeLimit = 10 * Math.pow(1024, 3); // 10GiB per repository
 
 /***/ }),
 
-/***/ 5067:
+/***/ 72:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -1689,9 +1764,9 @@ const buffer = __importStar(__nccwpck_require__(181));
 const fs = __importStar(__nccwpck_require__(9896));
 const stream = __importStar(__nccwpck_require__(2203));
 const util = __importStar(__nccwpck_require__(9023));
-const utils = __importStar(__nccwpck_require__(8299));
-const constants_1 = __nccwpck_require__(8287);
-const requestUtils_1 = __nccwpck_require__(2846);
+const utils = __importStar(__nccwpck_require__(5818));
+const constants_1 = __nccwpck_require__(7924);
+const requestUtils_1 = __nccwpck_require__(8435);
 const abort_controller_1 = __nccwpck_require__(8110);
 /**
  * Pipes the body of a HTTP response to a stream
@@ -2028,7 +2103,7 @@ const promiseWithTimeout = (timeoutMs, promise) => __awaiter(void 0, void 0, voi
 
 /***/ }),
 
-/***/ 2846:
+/***/ 8435:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -2069,7 +2144,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.retryHttpClientResponse = exports.retryTypedResponse = exports.retry = exports.isRetryableStatusCode = exports.isServerErrorStatusCode = exports.isSuccessStatusCode = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const http_client_1 = __nccwpck_require__(4844);
-const constants_1 = __nccwpck_require__(8287);
+const constants_1 = __nccwpck_require__(7924);
 function isSuccessStatusCode(statusCode) {
     if (!statusCode) {
         return false;
@@ -2172,7 +2247,7 @@ exports.retryHttpClientResponse = retryHttpClientResponse;
 
 /***/ }),
 
-/***/ 6819:
+/***/ 8264:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -2189,13 +2264,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.internalCacheTwirpClient = void 0;
 const core_1 = __nccwpck_require__(7484);
-const user_agent_1 = __nccwpck_require__(1899);
-const errors_1 = __nccwpck_require__(263);
-const config_1 = __nccwpck_require__(7606);
-const cacheUtils_1 = __nccwpck_require__(8299);
+const user_agent_1 = __nccwpck_require__(7360);
+const errors_1 = __nccwpck_require__(816);
+const config_1 = __nccwpck_require__(6063);
+const cacheUtils_1 = __nccwpck_require__(5818);
 const auth_1 = __nccwpck_require__(4552);
 const http_client_1 = __nccwpck_require__(4844);
-const cache_twirp_client_1 = __nccwpck_require__(1486);
+const cache_twirp_client_1 = __nccwpck_require__(1667);
 /**
  * This class is a wrapper around the CacheServiceClientJSON class generated by Twirp.
  *
@@ -2339,7 +2414,7 @@ exports.internalCacheTwirpClient = internalCacheTwirpClient;
 
 /***/ }),
 
-/***/ 263:
+/***/ 816:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2416,7 +2491,7 @@ UsageError.isUsageErrorMessage = (msg) => {
 
 /***/ }),
 
-/***/ 1899:
+/***/ 7360:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2424,7 +2499,7 @@ UsageError.isUsageErrorMessage = (msg) => {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getUserAgentString = void 0;
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-const packageJson = __nccwpck_require__(4012);
+const packageJson = __nccwpck_require__(4915);
 /**
  * Ensure that this User Agent String is used in all HTTP calls so that we can monitor telemetry between different versions of this package
  */
@@ -2436,7 +2511,7 @@ exports.getUserAgentString = getUserAgentString;
 
 /***/ }),
 
-/***/ 5321:
+/***/ 4198:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -2479,8 +2554,8 @@ const exec_1 = __nccwpck_require__(5236);
 const io = __importStar(__nccwpck_require__(4994));
 const fs_1 = __nccwpck_require__(9896);
 const path = __importStar(__nccwpck_require__(6928));
-const utils = __importStar(__nccwpck_require__(8299));
-const constants_1 = __nccwpck_require__(8287);
+const utils = __importStar(__nccwpck_require__(5818));
+const constants_1 = __nccwpck_require__(7924);
 const IS_WINDOWS = process.platform === 'win32';
 // Returns tar path and type: BSD or GNU
 function getTarPath() {
@@ -2715,7 +2790,7 @@ exports.createTar = createTar;
 
 /***/ }),
 
-/***/ 5268:
+/***/ 8171:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -2756,7 +2831,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.uploadCacheArchiveSDK = exports.UploadProgress = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const storage_blob_1 = __nccwpck_require__(1012);
-const errors_1 = __nccwpck_require__(263);
+const errors_1 = __nccwpck_require__(816);
 /**
  * Class for tracking the upload state and displaying stats.
  */
@@ -2889,7 +2964,7 @@ exports.uploadCacheArchiveSDK = uploadCacheArchiveSDK;
 
 /***/ }),
 
-/***/ 8356:
+/***/ 2333:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -2930,7 +3005,8 @@ function getUploadOptions(copy) {
     const result = {
         useAzureSdk: false,
         uploadConcurrency: 4,
-        uploadChunkSize: 32 * 1024 * 1024
+        uploadChunkSize: 32 * 1024 * 1024,
+        useLocalCache: false
     };
     if (copy) {
         if (typeof copy.useAzureSdk === 'boolean') {
@@ -2941,6 +3017,12 @@ function getUploadOptions(copy) {
         }
         if (typeof copy.uploadChunkSize === 'number') {
             result.uploadChunkSize = copy.uploadChunkSize;
+        }
+        if (typeof copy.useLocalCache == 'boolean') {
+            result.useLocalCache = copy.useLocalCache;
+        }
+        if (typeof copy.localCacheDirectoryBasePath === 'string') {
+            result.localCacheDirectoryBasePath = copy.localCacheDirectoryBasePath;
         }
     }
     /**
@@ -2972,7 +3054,8 @@ function getDownloadOptions(copy) {
         downloadConcurrency: 8,
         timeoutInMs: 30000,
         segmentTimeoutInMs: 600000,
-        lookupOnly: false
+        lookupOnly: false,
+        useLocalCache: false
     };
     if (copy) {
         if (typeof copy.useAzureSdk === 'boolean') {
@@ -2992,6 +3075,12 @@ function getDownloadOptions(copy) {
         }
         if (typeof copy.lookupOnly === 'boolean') {
             result.lookupOnly = copy.lookupOnly;
+        }
+        if (typeof copy.useLocalCache == 'boolean') {
+            result.useLocalCache = copy.useLocalCache;
+        }
+        if (typeof copy.localCacheDirectoryBasePath === 'string') {
+            result.localCacheDirectoryBasePath = copy.localCacheDirectoryBasePath;
         }
     }
     const segmentDownloadTimeoutMins = process.env['SEGMENT_DOWNLOAD_TIMEOUT_MINS'];
@@ -47011,7 +47100,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.saveRun = exports.saveOnlyRun = exports.saveImpl = void 0;
-const cache = __importStar(__nccwpck_require__(5116));
+const cache = __importStar(__nccwpck_require__(337));
 const core = __importStar(__nccwpck_require__(7484));
 const constants_1 = __nccwpck_require__(7242);
 const stateProvider_1 = __nccwpck_require__(2879);
@@ -47218,7 +47307,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.isCacheFeatureAvailable = exports.getInputAsBool = exports.getInputAsInt = exports.getInputAsArray = exports.isValidEvent = exports.logWarning = exports.isExactKeyMatch = exports.isGhes = void 0;
-const cache = __importStar(__nccwpck_require__(5116));
+const cache = __importStar(__nccwpck_require__(337));
 const core = __importStar(__nccwpck_require__(7484));
 const constants_1 = __nccwpck_require__(7242);
 function isGhes() {
@@ -56719,11 +56808,11 @@ Object.defineProperty(exports, "AbortError", ({ enumerable: true, get: function 
 
 /***/ }),
 
-/***/ 4012:
+/***/ 4915:
 /***/ ((module) => {
 
 "use strict";
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@actions/cache","version":"4.0.1","preview":true,"description":"Actions cache lib","keywords":["github","actions","cache"],"homepage":"https://github.com/actions/toolkit/tree/main/packages/cache","license":"MIT","main":"lib/cache.js","types":"lib/cache.d.ts","directories":{"lib":"lib","test":"__tests__"},"files":["lib","!.DS_Store"],"publishConfig":{"access":"public"},"repository":{"type":"git","url":"git+https://github.com/actions/toolkit.git","directory":"packages/cache"},"scripts":{"audit-moderate":"npm install && npm audit --json --audit-level=moderate > audit.json","test":"echo \\"Error: run tests from root\\" && exit 1","tsc":"tsc"},"bugs":{"url":"https://github.com/actions/toolkit/issues"},"dependencies":{"@actions/core":"^1.11.1","@actions/exec":"^1.0.1","@actions/glob":"^0.1.0","@actions/http-client":"^2.1.1","@actions/io":"^1.0.1","@azure/abort-controller":"^1.1.0","@azure/ms-rest-js":"^2.6.0","@azure/storage-blob":"^12.13.0","@protobuf-ts/plugin":"^2.9.4","semver":"^6.3.1"},"devDependencies":{"@types/semver":"^6.0.0","typescript":"^5.2.2"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@actions/cache","version":"4.0.1","preview":true,"description":"Actions cache lib","keywords":["github","actions","cache"],"homepage":"https://github.com/aiueo-1234/local-cache-toolkit/tree/main/packages/cache","license":"MIT","main":"lib/cache.js","types":"lib/cache.d.ts","directories":{"lib":"lib","test":"__tests__"},"files":["lib","!.DS_Store"],"publishConfig":{"access":"public"},"repository":{"type":"git","url":"https://github.com/aiueo-1234/self-cache.git","directory":"packages/cache"},"scripts":{"audit-moderate":"npm install && npm audit --json --audit-level=moderate > audit.json","test":"echo \\"Error: run tests from root\\" && exit 1","tsc":"tsc"},"bugs":{"url":"https://github.com/actions/toolkit/issues"},"dependencies":{"@actions/core":"^1.11.1","@actions/exec":"^1.0.1","@actions/glob":"^0.1.0","@actions/http-client":"^2.1.1","@actions/io":"^1.0.1","@azure/abort-controller":"^1.1.0","@azure/ms-rest-js":"^2.6.0","@azure/storage-blob":"^12.13.0","@protobuf-ts/plugin":"^2.9.4","semver":"^6.3.1"}}');
 
 /***/ })
 
