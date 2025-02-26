@@ -47037,7 +47037,9 @@ var Inputs;
     Inputs["UploadChunkSize"] = "upload-chunk-size";
     Inputs["EnableCrossOsArchive"] = "enableCrossOsArchive";
     Inputs["FailOnCacheMiss"] = "fail-on-cache-miss";
-    Inputs["LookupOnly"] = "lookup-only"; // Input for cache, restore action
+    Inputs["LookupOnly"] = "lookup-only";
+    Inputs["UseLocalCache"] = "use-local-cache";
+    Inputs["BaseDirectory"] = "base-directory"; // Input for cache, save and restore action
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
 (function (Outputs) {
@@ -47139,7 +47141,7 @@ function saveImpl(stateProvider) {
                 required: true
             });
             const enableCrossOsArchive = utils.getInputAsBool(constants_1.Inputs.EnableCrossOsArchive);
-            cacheId = yield cache.saveCache(cachePaths, primaryKey, { uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize) }, enableCrossOsArchive);
+            cacheId = yield cache.saveCache(cachePaths, primaryKey, Object.assign({ uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize) }, utils.getLocalCacheConfig()), enableCrossOsArchive);
             if (cacheId != -1) {
                 core.info(`Cache saved with key: ${primaryKey}`);
             }
@@ -47306,7 +47308,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isCacheFeatureAvailable = exports.getInputAsBool = exports.getInputAsInt = exports.getInputAsArray = exports.isValidEvent = exports.logWarning = exports.isExactKeyMatch = exports.isGhes = void 0;
+exports.getLocalCacheConfig = exports.isCacheFeatureAvailable = exports.getInputAsBool = exports.getInputAsInt = exports.getInputAsArray = exports.isValidEvent = exports.logWarning = exports.isExactKeyMatch = exports.isGhes = void 0;
 const cache = __importStar(__nccwpck_require__(337));
 const core = __importStar(__nccwpck_require__(7484));
 const constants_1 = __nccwpck_require__(7242);
@@ -47371,6 +47373,13 @@ Otherwise please upgrade to GHES version >= 3.5 and If you are also using Github
     return false;
 }
 exports.isCacheFeatureAvailable = isCacheFeatureAvailable;
+function getLocalCacheConfig() {
+    return {
+        useLocalCache: getInputAsBool(constants_1.Inputs.UseLocalCache),
+        localCacheDirectoryBasePath: core.getInput(constants_1.Inputs.BaseDirectory)
+    };
+}
+exports.getLocalCacheConfig = getLocalCacheConfig;
 
 
 /***/ }),
