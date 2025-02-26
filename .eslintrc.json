@@ -18,5 +18,6 @@
     "import/no-duplicates": "error",
     "simple-import-sort/imports": "error",
     "sort-imports": "off"
-  }
+  },
+  "ignorePatterns": ["lib/", "node_modules/"]
 }
